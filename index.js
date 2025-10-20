@@ -1,65 +1,157 @@
-import 'dotenv/config'
-import express from 'express'
+import 'dotenv/config';
+import express from 'express';
 
-const app=express()
+const app = express();
+const port = process.env.PORT || 3000;
 
-const port=process.env.PORT || 3000
+app.use(express.json());
 
-app.use(express.json())
+let users = [
+    { id: 1, name: "the avi" },
+    { id: 2, name: "gaurav" },
+    { id: 3, name: "akash" },
+    { id: 4, name: "anurag" },
+    { id: 5, name: "chintu" },
+    { id: 6, name: "bikash" },
+];
 
-let users=[
-    {id:1,name:"the avi"},
-    {id:2,name:"gaurav"},
-    {id:3,name:"akash"},
-    {id:4,name:"anurag"},
-    {id:5,name:"chintu"},
-    {id:6,name:"bikash"},
-]
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({
+        message: 'User Management API',
+        version: '1.0.0',
+        endpoints: {
+            getUsers: 'GET /users',
+            createUser: 'POST /users',
+            updateUser: 'PUT /users/:id',
+            deleteUser: 'DELETE /users/:id'
+        }
+    });
+});
 
-app.get('/',(req,res)=>{
-    res.send('Hello World')
-})
+// Get all users
+app.get('/users', (req, res) => {
+    res.json({
+        success: true,
+        count: users.length,
+        data: users
+    });
+});
 
-//geting users
-app.get('/users',(req,res)=>{
-  res.json(users)
-})
+// Create new user
+app.post('/users', (req, res) => {
+    const { name } = req.body;
 
-//posting new users
-app.post('/users',(req,res)=>{
-    const newUser=[
-        {id:users.length+1,name:req.body.name}
-    ]
-    users.push(newUser)
-    res.status(201).json(newUser)
-})
-
-//updating user info
-
-app.put('/users/:id',(req,res)=>{
-    const userId=parseInt(req.params.id)
-    const user=users.find(u=>u.id===userId)
-    console.log(user)
-    if(user){
-        user.name=req.body.name
-        res.json(user)
+    // Validate input
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Please provide a valid name'
+        });
     }
-    else{
-        res.status(404).json({message:"user not found"})
+
+    // Generate new ID (find max ID and add 1)
+    const newId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+    
+    const newUser = {
+        id: newId,
+        name: name.trim()
+    };
+
+    users.push(newUser);
+
+    res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        data: newUser
+    });
+});
+
+// Update user
+app.put('/users/:id', (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { name } = req.body;
+
+    // Validate ID
+    if (isNaN(userId)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid user ID'
+        });
     }
-})
 
-//deleting user
+    // Validate name
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Please provide a valid name'
+        });
+    }
 
-app.delete('/users/:id',(req,res)=>{
-    const userId=parseInt(req.params.id)
-    users=users.filter(u=>u.id!==userId)
-    res.status(204).send('User Delected')
-   
-})
+    const user = users.find(u => u.id === userId);
 
+    if (user) {
+        user.name = name.trim();
+        res.json({
+            success: true,
+            message: 'User updated successfully',
+            data: user
+        });
+    } else {
+        res.status(404).json({
+            success: false,
+            message: 'User not found'
+        });
+    }
+});
 
+// Delete user
+app.delete('/users/:id', (req, res) => {
+    const userId = parseInt(req.params.id);
 
-app.listen(port,()=>{
-    console.log(`Server Listening on: ${port}`)
-})
+    // Validate ID
+    if (isNaN(userId)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid user ID'
+        });
+    }
+
+    const initialLength = users.length;
+    users = users.filter(u => u.id !== userId);
+
+    if (users.length < initialLength) {
+        res.json({
+            success: true,
+            message: 'User deleted successfully'
+        });
+    } else {
+        res.status(404).json({
+            success: false,
+            message: 'User not found'
+        });
+    }
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Route not found'
+    });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
+
+app.listen(port, () => {
+    console.log(`🚀 Server is running on port ${port}`);
+    console.log(`📍 Access the API at http://localhost:${port}`);
+});
